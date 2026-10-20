@@ -6,6 +6,7 @@ Each test creates and removes its own schema; no application tables are touched.
 import os
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from threading import Barrier
 from uuid import uuid4
@@ -14,13 +15,14 @@ import pytest
 from alembic.config import Config
 from fastapi import HTTPException
 from sqlalchemy import Engine, create_engine, inspect, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alembic import command
 from app.api.v1 import auth
 from app.api.v1.schemas import UserRegister
 from app.core.security import decode_token, get_token_user
-from app.db.models import TokenBlocklist
+from app.db.models import EventSeverity, SecurityEvent, TokenBlocklist
 
 
 @pytest.fixture
@@ -63,7 +65,65 @@ def test_migration_round_trip_and_model_alignment(postgres_engine: Engine) -> No
         "alembic_version",
         "users",
         "token_blocklist",
+        "security_events",
     }
+
+
+def test_security_event_storage(postgres_engine: Engine) -> None:
+    migrate(postgres_engine, "upgrade", "head")
+    occurred_at = datetime(2026, 10, 20, 12, tzinfo=timezone(timedelta(hours=3)))
+
+    def event(source: str = "auth-service") -> SecurityEvent:
+        return SecurityEvent(
+            source=source,
+            event_id="evt_001",
+            event_type="authentication.failed",
+            occurred_at=occurred_at,
+            severity=EventSeverity.INFO,
+            actor_user_id="external-account",
+            actor_ip="2001:db8::1",
+            event_metadata={"reason": "invalid_credentials", "attempt": 1},
+        )
+
+    with Session(postgres_engine) as db:
+        stored = event()
+        db.add(stored)
+        db.commit()
+        db.refresh(stored)
+        assert stored.id is not None
+        assert stored.occurred_at.astimezone(UTC) == datetime(
+            2026, 10, 20, 9, tzinfo=UTC
+        )
+        assert stored.ingested_at.tzinfo is not None
+        assert stored.actor_ip == "2001:db8::1"
+        assert stored.event_metadata == {"reason": "invalid_credentials", "attempt": 1}
+        assert stored.severity == EventSeverity.INFO
+        db.add(event())
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        other = SecurityEvent(
+            source="another-source",
+            event_id="evt_001",
+            event_type="authentication.failed",
+            occurred_at=occurred_at,
+            severity=EventSeverity.INFO,
+        )
+        db.add(other)
+        db.commit()
+        assert other.event_metadata == {}
+        assert other.actor_user_id is None
+        assert other.actor_ip is None
+
+        with pytest.raises(IntegrityError):
+            db.execute(text("UPDATE security_events SET severity = 'invalid'"))
+        db.rollback()
+
+    columns = {
+        column["name"]: column
+        for column in inspect(postgres_engine).get_columns("security_events")
+    }
+    assert columns["metadata"]["type"].__class__.__name__ == "JSONB"
 
 
 @pytest.mark.parametrize("operation", ["refresh", "register"])
