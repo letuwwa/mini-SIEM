@@ -86,6 +86,13 @@ TEST_POSTGRES_URL='postgresql+psycopg2://user:password@localhost:5432/test_db' \
 Run only PostgreSQL checks with `uv run pytest tests/test_postgres.py`. Each
 check applies its own migrations in a temporary schema and removes it afterward.
 
+GitHub Actions runs lint, formatting, and the full test suite on every pull
+request using Python 3.14 and a temporary PostgreSQL 18 service. The workflow is
+in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and also supports manual
+runs. No application secrets are needed. After the first run, require the
+`Tests and lint` status check in your default branch's protection rule or ruleset
+to block merging failing PRs.
+
 Create schema changes with `uv run alembic revision --autogenerate -m "describe change"`.
 Review migrations before applying them. The username constraint migration rejects
 existing usernames containing `@`; rename those accounts before upgrading.
