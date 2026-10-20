@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-fastapi_template}
+      POSTGRES_DB: ${POSTGRES_DB:-mini_siem}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -20,14 +20,14 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      APP_NAME: ${APP_NAME:-fastapi-template}
+      APP_NAME: ${APP_NAME:-mini-SIEM}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       ALLOWED_ORIGINS: '${ALLOWED_ORIGINS:-["http://localhost:3000","http://localhost:8000","http://127.0.0.1:3000","http://127.0.0.1:8000"]}'
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-fastapi_template}
+      POSTGRES_DB: ${POSTGRES_DB:-mini_siem}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}

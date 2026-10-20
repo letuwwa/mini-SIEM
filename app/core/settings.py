@@ -6,7 +6,7 @@ from sqlalchemy import URL
 
 
 class Settings(BaseSettings):
-    app_name: str = "My API"
+    app_name: str = "mini-SIEM"
     environment: str = "development"
     # Compose consumes this value; accepting it also supports a shared .env.
     backend_port: int = Field(default=8000, ge=1, le=65535)

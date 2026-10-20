@@ -256,7 +256,7 @@ standard-no-fastapi-cloud-cli = [
 ]
 
 [[package]]
-name = "fastapi-template"
+name = "mini-siem"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
