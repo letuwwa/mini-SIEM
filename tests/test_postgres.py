@@ -1,4 +1,4 @@
-"""Explicit PostgreSQL checks: TEST_POSTGRES_URL=... uv run pytest tests/postgres_checks.py.
+"""PostgreSQL checks discovered by pytest; require TEST_POSTGRES_URL.
 
 Each test creates and removes its own schema; no application tables are touched.
 """
@@ -27,7 +27,9 @@ from app.db.models import EventSeverity, SecurityEvent, TokenBlocklist
 
 @pytest.fixture
 def postgres_engine() -> Generator[Engine]:
-    url = os.environ["TEST_POSTGRES_URL"]
+    url = os.environ.get("TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("Set TEST_POSTGRES_URL to run PostgreSQL integration checks")
     schema = f"audit_{uuid4().hex}"
     admin_engine = create_engine(url)
     engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})

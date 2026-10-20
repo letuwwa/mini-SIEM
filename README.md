@@ -73,13 +73,18 @@ uv run ruff format --check .
 uv lock --check
 ```
 
-Default tests use isolated SQLite databases. For PostgreSQL migration and
-concurrency checks, use a disposable test database with schema creation rights:
+The default suite includes PostgreSQL migration and concurrency checks. They
+skip when `TEST_POSTGRES_URL` is unset; the other tests use isolated SQLite.
+To run everything, use a disposable PostgreSQL test database with schema creation
+rights:
 
 ```bash
 TEST_POSTGRES_URL='postgresql+psycopg2://user:password@localhost:5432/test_db' \
-  uv run pytest tests/postgres_checks.py -W error
+  uv run pytest -W error
 ```
+
+Run only PostgreSQL checks with `uv run pytest tests/test_postgres.py`. Each
+check applies its own migrations in a temporary schema and removes it afterward.
 
 Create schema changes with `uv run alembic revision --autogenerate -m "describe change"`.
 Review migrations before applying them. The username constraint migration rejects
