@@ -21,6 +21,8 @@ from sqlalchemy.orm import Session
 from alembic import command
 from app.api.v1 import auth
 from app.api.v1.schemas import UserRegister
+from app.api.v1.schemas.security_event import SecurityEventCreate
+from app.api.v1.services import EventConflictError, ingest_event
 from app.core.security import decode_token, get_token_user
 from app.db.models import EventSeverity, SecurityEvent, TokenBlocklist
 
@@ -126,6 +128,48 @@ def test_security_event_storage(postgres_engine: Engine) -> None:
         for column in inspect(postgres_engine).get_columns("security_events")
     }
     assert columns["metadata"]["type"].__class__.__name__ == "JSONB"
+
+
+@pytest.mark.parametrize("conflicting", [False, True])
+def test_concurrent_event_ingestion(postgres_engine: Engine, conflicting: bool) -> None:
+    migrate(postgres_engine, "upgrade", "head")
+    barrier = Barrier(2, timeout=10)
+
+    def request(index: int):
+        with Session(postgres_engine) as db:
+            original_commit = db.commit
+
+            def synchronized_commit():
+                # Both requests have checked for an existing record before inserting.
+                barrier.wait()
+                original_commit()
+
+            db.commit = synchronized_commit
+            payload = SecurityEventCreate(
+                event_id="concurrent-event",
+                source="demo-auth",
+                event_type="authentication.failed",
+                occurred_at=datetime(2026, 10, 22, 9, tzinfo=UTC),
+                metadata={"attempt": index if conflicting else 0},
+            )
+            try:
+                event, created = ingest_event(db, payload)
+                return event.id, created
+            except EventConflictError:
+                assert db.scalar(select(1)) == 1
+                return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(request, range(2)))
+
+    if conflicting:
+        assert results.count("conflict") == 1
+        assert next(result for result in results if result != "conflict")[1] is True
+    else:
+        assert results[0][0] == results[1][0]
+        assert sorted(result[1] for result in results) == [False, True]
+    with Session(postgres_engine) as db:
+        assert len(db.scalars(select(SecurityEvent)).all()) == 1
 
 
 @pytest.mark.parametrize("operation", ["refresh", "register"])

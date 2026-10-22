@@ -107,7 +107,7 @@ Suggested boundaries:
 
 ```text
 app/api/v1/              HTTP routes and request/response schemas
-app/services/            ingestion, querying, investigation, permission checks
+app/api/v1/services/     ingestion, querying, investigation, permission checks
 app/detection/           rule definitions and evaluation
 app/db/models/           persisted entities
 app/workers/             durable job processing entry point
