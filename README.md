@@ -99,6 +99,10 @@ existing usernames containing `@`; rename those accounts before upgrading.
 
 ## Roadmap and limitations
 
+See the [detailed MVP roadmap](docs/MVP_ROADMAP.md) for the current project
+assessment, implementation milestones, security concepts, acceptance criteria,
+and future development priorities.
+
 1. Authenticated event ingestion, source-scoped idempotency, UTC timestamps,
    filtered/paginated queries, and a synthetic event generator.
 2. Five failed logins for one account within ten minutes: detection, alert
